@@ -202,12 +202,12 @@ pub enum Event {
         dst_peer_id: PeerId,
         error: inbound_hop::Error,
     },
-    /// An inbound cirucit request has been accepted.
+    /// An inbound circuit request has been accepted.
     CircuitReqAccepted {
         src_peer_id: PeerId,
         dst_peer_id: PeerId,
     },
-    /// An outbound connect for an inbound cirucit request failed.
+    /// An outbound connect for an inbound circuit request failed.
     #[deprecated(
         note = "Will be removed in favor of logging them internally, see <https://github.com/libp2p/rust-libp2p/issues/4757> for details."
     )]
@@ -693,11 +693,8 @@ impl NetworkBehaviour for Behaviour {
         }
     }
 
-    #[tracing::instrument(level = "trace", name = "ConnectionHandler::poll", skip(self, _cx))]
-    fn poll(
-        &mut self,
-        _cx: &mut Context<'_>,
-    ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
+    #[tracing::instrument(level = "trace", name = "NetworkBehaviour::poll", skip(self))]
+    fn poll(&mut self, _: &mut Context<'_>) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if let Some(to_swarm) = self.queued_actions.pop_front() {
             return Poll::Ready(to_swarm);
         }

@@ -60,6 +60,7 @@
 #[cfg(feature = "async-std")]
 pub mod async_std {
     use async_std_resolver::AsyncStdResolver;
+    use futures::FutureExt;
     use hickory_resolver::{
         config::{ResolverConfig, ResolverOpts},
         system_conf,
@@ -83,6 +84,30 @@ pub mod async_std {
             Transport {
                 inner: Arc::new(Mutex::new(inner)),
                 resolver: async_std_resolver::resolver(cfg, opts).await,
+            }
+        }
+
+        // TODO: Replace `system` implementation with this
+        #[doc(hidden)]
+        pub fn system2(inner: T) -> Result<Transport<T>, io::Error> {
+            Ok(Transport {
+                inner: Arc::new(Mutex::new(inner)),
+                resolver: async_std_resolver::resolver_from_system_conf()
+                    .now_or_never()
+                    .expect(
+                        "async_std_resolver::resolver_from_system_conf did not resolve immediately",
+                    )?,
+            })
+        }
+
+        // TODO: Replace `custom` implementation with this
+        #[doc(hidden)]
+        pub fn custom2(inner: T, cfg: ResolverConfig, opts: ResolverOpts) -> Transport<T> {
+            Transport {
+                inner: Arc::new(Mutex::new(inner)),
+                resolver: async_std_resolver::resolver(cfg, opts)
+                    .now_or_never()
+                    .expect("async_std_resolver::resolver did not resolve immediately"),
             }
         }
     }
@@ -252,7 +277,7 @@ where
         let resolver = self.resolver.clone();
         let inner = self.inner.clone();
 
-        // Asynchronlously resolve all DNS names in the address before proceeding
+        // Asynchronously resolve all DNS names in the address before proceeding
         // with dialing on the underlying transport.
         Ok(async move {
             let mut last_err = None;
@@ -391,6 +416,7 @@ pub enum Error<TErr> {
     /// The underlying transport encountered an error.
     Transport(TErr),
     /// DNS resolution failed.
+    #[allow(clippy::enum_variant_names)]
     ResolveError(ResolveError),
     /// DNS resolution was successful, but the underlying transport refused the resolved address.
     MultiaddrNotSupported(Multiaddr),
